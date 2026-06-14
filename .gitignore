@@ -1,0 +1,17 @@
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Python
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+venv/
