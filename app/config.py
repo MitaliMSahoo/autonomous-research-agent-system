@@ -15,8 +15,10 @@ if ENV_FILE_PATH.exists():
 else:
     load_dotenv()  # still load from environment/system vars
 
+print(ENV_FILE_PATH, "exists:", ENV_FILE_PATH.exists(), os.getenv("PROJECT_NAME"))
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "FastAPI default"
+    PROJECT_NAME: str = os.getenv("PROJECT_NAME", "FastAPI default")
+    print(PROJECT_NAME)
     VERSION: str = "0.1.0"
     DEBUG: bool = False 
     API_V1_STR: str = "/api/v1"
@@ -41,12 +43,13 @@ class Settings(BaseSettings):
     ANTHROPIC_MODEL: str = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama2")
     GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     
     # API Keys
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
+    LANGSMITH_API_KEY: str = os.getenv("LANGSMITH_API_KEY", "")
     
     # LangSmith tracing
     LANGSMITH_TRACING_V2: bool = os.getenv("LANGSMITH_TRACING_V2", "false").lower() == "true"

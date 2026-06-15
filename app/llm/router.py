@@ -9,7 +9,7 @@ from app.config import settings
 
 load_dotenv()
 
-def get_llm_model(model_name: str = "gpt-4o-mini", temperature: float = 0):
+def get_llm_model():
     """
     Returns the configured LLM based on LLM_PROVIDER env var.
     

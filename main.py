@@ -10,6 +10,7 @@ class EchoState(TypedDict):
     msg: str
 
 
+
 def echo_node(state: EchoState) -> dict:
     original_msg = state["msg"]
     echoed_msg = "Echo: " + original_msg

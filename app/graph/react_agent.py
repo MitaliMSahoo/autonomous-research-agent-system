@@ -13,7 +13,7 @@ def build_react_agent():
 
     model = get_llm_model()
 
-    tools_list = [echo_modifier_tool, get_tavily_search_tool()]
+    tools_list = [get_tavily_search_tool()]
 
     memory_checkpointer = MemorySaver()
 

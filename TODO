@@ -1,0 +1,58 @@
+D:\2026\Projects\Deep-Research-Agent\.env exists: True Deep Resseach Agent
+Deep Resseach Agent
+
+🚀 ENV CHECK: Deep Resseach Agent
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\2026\Projects\Deep-Research-Agent\app\graph\planner.py", line 76, in <module>
+    result = asyncio.run(planner_node(test_state))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\milim\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\milim\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\milim\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\app\graph\planner.py", line 53, in planner_node
+    plan: ResearchPlan = await structured_llm.ainvoke(messages)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\langchain_core\runnables\base.py", line 3484, in ainvoke
+    input_ = await coro_with_context(part(), context, create_task=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\langchain_core\runnables\base.py", line 6017, in ainvoke
+    return await self.bound.ainvoke(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 499, in ainvoke
+    llm_result = await self.agenerate_prompt(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1860, in agenerate_prompt
+    return await self.agenerate(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1818, in agenerate
+    raise exceptions[0]
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 2151, in _agenerate_with_cache
+    result = await self._agenerate(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 1960, in _agenerate
+    _handle_openai_bad_request(e)
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 1927, in _agenerate
+    raw_response = await self.root_async_client.chat.completions.with_raw_response.parse(  # noqa: E501
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\openai\_legacy_response.py", line 384, in wrapped
+    return cast(LegacyAPIResponse[R], await func(*args, **kwargs))
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\openai\resources\chat\completions\completions.py", line 1755, in parse
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\openai\_base_client.py", line 1931, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\2026\Projects\Deep-Research-Agent\venv\Lib\site-packages\openai\_base_client.py", line 1716, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': 'The model `llama-3.1-70b-versatile` has been decommissioned and is no longer supported. Please refer to https://console.groq.com/docs/deprecations for a recommendation on which model to use instead.', 'type': 'invalid_request_error', 'code': 'model_decommissioned'}}
+(venv) PS D:\2026\Projects\Deep-Research-Agent> 
