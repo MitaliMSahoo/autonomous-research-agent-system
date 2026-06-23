@@ -47,7 +47,7 @@ async def planner_node(state: ResearchState) -> dict:
         ("human", state["query"]),
     ]
     
-    # 3. Invoke LLM and parse JSON response
+    # 3. Invoke LLM and parse JSON response (first run only)
     plan = await llm.ainvoke(messages)
     print(f"\n[Planner Node] Generated sub-questions:", plan)
     plan_data = json.loads(plan.content)
@@ -55,13 +55,14 @@ async def planner_node(state: ResearchState) -> dict:
     generated_questions = plan_data["sub_questions"]
     print(f"[Planner Node] Pausing for user approval of {len(generated_questions)} sub-questions")
     
-    # Pause execution and wait for user approval
-    # The return below executes AFTER resume with the user's approved questions
-    user_approved = interrupt(generated_questions)
-
-    # 4. Return sub-questions to update the graph state (executes on resume)
+    # 4. Pause and wait for user approval
+    # On resume: interrupt() returns the approved_questions from Command(resume=...)
+    # Code after this line only executes on resume
+    approved_questions = interrupt(generated_questions)
+    print("moving forward after approval of sub-questions")
+    # 5. Return approved sub-questions (executes on resume only)
     return {
-        "sub_questions": user_approved if user_approved else generated_questions,
+        "sub_questions": approved_questions if approved_questions else generated_questions,
         "status": "planned"
     }
 

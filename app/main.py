@@ -146,8 +146,9 @@ async def approve_plan(job_id: str, body: dict) -> dict:
     approved_questions = body.get("approved_questions", [])
     
     try:
-        # Resume the graph with the approved questions
-        # This is one call that resumes from interrupt() point
+        # Resume the graph from the interrupt point
+        # Command(resume=...) passes the approved questions back to interrupt()
+        # Run in background so endpoint returns immediately
         asyncio.create_task(
             agent.ainvoke(
                 Command(resume=approved_questions),
@@ -174,6 +175,7 @@ async def health_check() -> dict:
     Simple health check endpoint.
     Returns 200 if server is running.
     """
+    print("hello ok")
     return {"status": "healthy", "service": "autonomous-research-agent-system"}
 
 
