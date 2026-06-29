@@ -13,6 +13,16 @@ from app.graph.react_agent import build_react_agent, build_research_graph
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
+from contextlib import asynccontextmanager
+from app.storage.db import init_pool, close_pool
+from app.storage.migrations import run_migrations
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    pool = await init_pool()
+    await run_migrations(pool)
+    yield
+    await close_pool()
 
 jobs = {} # In-memory job store for demonstration
 
@@ -37,7 +47,8 @@ class JobStatus(BaseModel):
 app = FastAPI(
 title=settings.PROJECT_NAME,
 version=settings.VERSION,
-debug=settings.DEBUG
+debug=settings.DEBUG,
+lifespan=lifespan
 )
 
 agent = build_research_graph()
@@ -49,7 +60,8 @@ async def start_research(request: ResearchRequest) -> dict:
     jobs[job_id] = {
         "status": "running", 
         "result": None,
-        "error": None
+        "error": None,
+        "query": request.query
     }
 
     asyncio.create_task(_run_agent_background(job_id, request.query))
@@ -97,6 +109,7 @@ async def get_status(job_id: str) -> JobStatus:
             job_id=job_id,
             status=status,
             query=checkpoint_state.values.get("query"),
+            result=checkpoint_state.values.get("worker_results", []),
             messages=messages_formatted,
             error=metadata.get("error"),
             interrupted=interrupted_payload  # ← Return interrupt payload if paused
@@ -112,20 +125,39 @@ async def get_status(job_id: str) -> JobStatus:
 
 #
 @app.get("/report/{job_id}")
-def echo(job_id: str) -> dict:
-    
+async def get_report(job_id: str) -> dict:
+    from app.storage.reports import get_report
+
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     job = jobs[job_id]
-    if job["status"] == "pending":
-        raise HTTPException(status_code=400, detail="Job not completed yet")
-    elif job["status"] == "failed":
-        raise HTTPException(status_code=500, detail=f"Job failed with error: {job['error']}")
-    elif job["status"] == "running":
-        raise HTTPException(status_code=202, detail="Job is still running. Please check back later.")
-    else:
-        return job["result"]
+
+    # 1. Grab worker_results from the graph checkpoint
+    config = {"configurable": {"thread_id": job_id}}
+    graph_data = {}
+    try:
+        state = agent.get_state(config)
+        graph_data = state.values
+    except Exception:
+        pass
+
+    worker_results = graph_data.get("worker_results", job.get("result", {}).get("worker_results", []))
+
+    # 2. Grab summaries from the report_store DB
+    try:
+        db_reports = await get_report(job_id)
+    except Exception:
+        db_reports = []
+
+    return {
+        "job_id": job_id,
+        "query": graph_data.get("query") or job.get("result", {}).get("query"),
+        "status": job["status"],
+        "sub_questions": graph_data.get("sub_questions", []),
+        "worker_results": worker_results,
+        "db_reports": db_reports,
+    }
 
 #
 @app.post("/research/{job_id}/approve")
@@ -149,19 +181,34 @@ async def approve_plan(job_id: str, body: dict) -> dict:
         # Resume the graph from the interrupt point
         # Command(resume=...) passes the approved questions back to interrupt()
         # Run in background so endpoint returns immediately
-        asyncio.create_task(
-            agent.ainvoke(
-                Command(resume=approved_questions),
-                config=config
-            )
-        )
-        
+        async def _resume_and_store():
+            try:
+                result = await agent.ainvoke(
+                    Command(resume=approved_questions),
+                    config=config
+                )
+                jobs[job_id]["status"] = "completed"
+                jobs[job_id]["result"] = {
+                    "query": jobs[job_id].get("query", ""),
+                    "sub_questions": result.get("sub_questions", []),
+                    "worker_results": result.get("worker_results", []),
+                }
+                print(f"[{job_id}] Research complete — {len(result.get('worker_results', []))} worker results")
+            except Exception as e:
+                import traceback as tb
+                jobs[job_id]["status"] = "failed"
+                jobs[job_id]["error"] = str(e)
+                print(f"[{job_id}] Resume failed: {e}")
+                tb.print_exc()
+
+        asyncio.create_task(_resume_and_store())
+
         return {
             "status": "approved",
             "job_id": job_id,
             "message": "Graph resumed with approved questions"
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
  
@@ -197,19 +244,30 @@ async def _run_agent_background(job_id: str, query: str):
             "status": "started"
         }, config=config)
         
+        # Check if graph was interrupted (awaiting approval)
+        try:
+            checkpoint = agent.get_state(config)
+            if checkpoint.tasks:
+                # Paused at interrupt() — waiting for approval
+                jobs[job_id]["status"] = "awaiting_approval"
+                print(f"[{job_id}] Paused at interrupt — awaiting approval")
+                return
+        except Exception:
+            pass
+
         # Graph completed successfully (no interrupts)
         print(f"[{job_id}] Research agent completed successfully")
         jobs[job_id]["status"] = "completed"
         jobs[job_id]["result"] = {
             "query": query,
             "sub_questions": result.get("sub_questions", []),
+            "worker_results": result.get("worker_results", []),
             "status": result.get("status", "unknown")
         }
-        print(f"[{job_id}] Research complete")
+        print(f"[{job_id}] Research complete — {len(result.get('worker_results', []))} worker results")
         
     except Exception as e:
-        # Handle unexpected errors (not GraphInterrupt)
-        # GraphInterrupt is NOT thrown - graph pauses instead via checkpoint
+        # Handle unexpected errors
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["error"] = str(e)
         print(f"[{job_id}] Research failed: {e}")
@@ -233,29 +291,6 @@ def shout_node(state: EchoState) -> dict:
 
 
 if __name__ == "__main__":
-
-# Build and invoke state graph
-    # builder = StateGraph(EchoState)
-
-    # builder.add_node("echo_node", echo_node)
-    # builder.add_node("shout_node", shout_node)
-
-    # builder.add_edge(START, "echo_node")
-    # builder.add_edge("echo_node", "shout_node")
-    # builder.add_edge("shout_node", END)
-
-    # builder.set_entry_point("echo_node")
-
-
-    # graph = builder.compile()
-
-    # print("\n--- invoking graph ---\n")
-    
-    # result = graph.invoke({"message": "hello world"})
-    
-    # print(f"\n--- final state ---")
-    # print(f"result: {result}")
-    # print(f"message field: {result['message']}")
 
 
 
@@ -313,3 +348,4 @@ if __name__ == "__main__":
 # http://localhost:8000/docs
 #
 # Use this to test all endpoints in your browser!
+

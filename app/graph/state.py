@@ -21,6 +21,7 @@ class ResearchState(TypedDict):
     sub_questions: list
     worker_results: Annotated[list[dict[str, Any]], operator.add]
     results: list
+    retries: Annotated[list[dict], operator.add]  # items needing retry
     eval_scores: Optional[EvalScores]
     job_id: str
     status: str

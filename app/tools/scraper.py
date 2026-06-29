@@ -26,6 +26,9 @@ def scrape_url(url: str, timeout: int = 15) -> str:
     except Exception as e:
         return f"Error scraping {url}: {str(e)}"
 
+
+
+
 if __name__ == "__main__":
     content = scrape_url.invoke({"url": "https://en.wikipedia.org/wiki/Nuclear_fusion"})
     print(content[:1000])

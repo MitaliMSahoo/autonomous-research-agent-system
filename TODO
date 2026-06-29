@@ -6,3 +6,97 @@ Step 3 — POST /research/{id}/approve with the questions → "status": "approve
 Step 4 — GET /status/{id} → "status": "done" (graph resumed, interrupted: null)
 
 All 6 steps done ✅ (cancel can be added later when needed).
+
+
+python -m app.main
+
+---
+
+
+22/6 Monday
+Add Tavily API key, write search tool wrapper (returns top 5 URLs + snippets)
+Write scraper tool — fetch URL, strip nav/ads/boilerplate, return clean text
+Write search_worker node — takes one sub_question, calls Tavily + scraper
+Write orchestrator_node — reads approved sub_questions, returns list of Send() calls
+
+skipped phase 2, memory checkpoint switch to postgresssql docker compose and one more...
+
+4 steps in phase 3 done.
+
+Ran this python -m app.graph.react_agent, looked good, but dont know whats happening. 
+
+check the code for this 4 steps and learn what are added.
+and also if /approve is working? and __resume_bcakcgorund is removed() , so check whats the behaviour now
+------------------------------------------
+
+
+23/6
+
+I see the current state: state.py already has retries, react_agent.py imports evaluate_workers (which doesn't exist yet) and has a duplicate search_worker → END edge. Let me fix everything.
+
+Here's the evaluator.py code. I'll create it along with fixing the worker retry handling and graph wiring:
+
+Now fix the worker to respect retry count passed via _retries from state, and update the graph wiring:
+
+Now fix the graph wiring in react_agent.py:
+
+Let me verify all the files compile clean:
+
+Optimized tool selection
+
+All clean. Let me also quickly verify the graph logic makes sense by reviewing what we've built end-to-end:
+
+Wait, I see a subtle bug in the retry logic. When a worker retries and adds a new result for the same question, the old low-confidence result is still in the list. The evaluator will try to retry it again — infinite loop. Let me fix the evaluator to only evaluate the latest attempt for each sub-question:
+
+The bug is real — old low-confidence results persist and will trigger retries forever. Let me fix the evaluator:
+
+Edited
+evaluator.py+10-2
+Now let me verify everything is clean:
+
+All 3 files compile clean. Here's what was done:
+
+✅ evaluator.py — Created
+New node that runs after all workers finish:
+
+Groups worker_results by sub_question, keeping only the latest attempt (so old low-confidence results don't trigger infinite retries)
+For each latest result with confidence < 0.5 AND retries < 2, calls the LLM to reformulate the query
+Returns {"retries": [...]} which merges into state['retries'] via operator.add
+The route_retry function (already in workers.py) reads that list and fans out Send("search_worker", ...) for each retry.
+
+✅ workers.py — Fixed
+search_worker now respects _retries and _original passed from Send():
+
+_retries: retry count (0 on first run, incremented on retry)
+_original: the original sub-question (so the final result always reports the original, even after reformulation)
+✅ react_agent.py — Fixed
+Graph wiring is now:
+
+Removed the search_worker → END duplicate edge — now the graph only ends when evaluate_worker → route_retry returns Send("__end__", {}).
+
+Graph flow for retry edge
+
+
+
+--
+Phaase 3 is done
+Worker returns confidence=0.3
+         ↓
+evaluate_worker: sees it's < 0.5, retries=0 < 2
+         ↓  calls LLM to reformulate
+         ↓  returns {"retries": [{reformulated_query, original, retries: 1}]}
+         ↓
+route_retry: reads retries list
+         ↓
+  → [Send("search_worker", {sub_question: reformulated, _original: ..., _retries: 1})]
+         ↓
+search_worker runs again with better query, returns result with retries=1
+         ↓
+evaluate_worker checks again — if still low but retries=1 < 2, tries one more time
+         ↓
+After 2 retries (or good confidence), route_retry returns Send("__end__", {}) → DONE
+
+
+READ the code to understand fully and then commit. Test IT!!!!
+
+.................

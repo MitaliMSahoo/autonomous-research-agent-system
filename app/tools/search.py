@@ -1,9 +1,8 @@
 from langchain_core.tools import tool
 from langchain_community.tools.tavily_search import TavilySearchResults
-import os
 from typing import List, Dict
-from langchain_core.tools import tool
 from tavily import TavilyClient
+import os
 
 _tavily_client = None
 
@@ -30,12 +29,12 @@ def tavily_search(query: str, max_results: int = 5) -> List[Dict]:
         for r in response.get("results", [])
     ]
 
- 
+
 @tool
 def echo_modifier_tool(text: str) -> str:
     """Echo the input text."""
     return f"Echo Response: {text}"
- 
+
 
 def get_tavily_search_tool(max_results: int = 3) -> TavilySearchResults:
     """
@@ -43,9 +42,12 @@ def get_tavily_search_tool(max_results: int = 3) -> TavilySearchResults:
     """
     return TavilySearchResults(max_results=max_results)
 
-if __name__ == "__main__":
-    result = tavily_search.invoke({"query": "nuclear fusion latest", "max_results": 3})
-    for r in result:
-        print(f"\n🔗 {r['title']}")
-        print(f"   {r['url']}")
-        print(f"   {r['snippet'][:200]}...")
+
+
+
+# llm = ChatAnthropic(model=setting.MODEL, temperature=0)
+
+# # Whenever we invoke `llm_with_tool`, all three of these tool definitions
+# # are passed to the model.
+# tools = [my_echo_tool]
+# llm_with_tools = llm.bind_tools(tools)

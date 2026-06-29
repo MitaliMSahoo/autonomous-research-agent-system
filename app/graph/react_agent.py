@@ -4,7 +4,8 @@ from pathlib import Path
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage
-from app.graph.workers import search_worker, route_to_workers
+from app.graph.workers import route_retry, search_worker, route_to_workers
+from app.graph.evaluator import evaluate_workers
 from app.llm import get_llm_model
 from app.tools import echo_modifier_tool, get_tavily_search_tool
 from app.graph.planner import planner_node
@@ -16,10 +17,12 @@ def build_research_graph():
 
     builder.add_node("planner", planner_node)
     builder.add_node("search_worker", search_worker)
+    builder.add_node("evaluate_worker", evaluate_workers)  # NEW
     
     builder.add_edge(START, "planner")
-    builder.add_conditional_edges("planner", route_to_workers, ["search_worker"])
-    builder.add_edge("search_worker", END)
+    builder.add_conditional_edges("planner", route_to_workers, ["search_worker", END])
+    builder.add_edge("search_worker", "evaluate_worker")
+    builder.add_conditional_edges("evaluate_worker", route_retry, ["search_worker", END])
     
     memory_checkpointer = MemorySaver()
     return builder.compile(checkpointer=memory_checkpointer)
